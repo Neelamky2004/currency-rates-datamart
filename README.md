@@ -6,6 +6,8 @@ API, turned into a star schema, and refreshed every morning by a scheduled job.
 I built this to answer things like: how has the rupee moved against the euro
 since 1999, and which currencies jump around the most.
 
+![Job run with all four tasks passing](job-run.png)
+
 ## What it does
 
 Four steps, and they run in order:
