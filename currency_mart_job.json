@@ -1,0 +1,45 @@
+{
+  "name": "currency_rates_daily",
+  "description": "Fetch new ECB rates, merge to silver, rebuild the star schema, then test it.",
+  "schedule": {
+    "quartz_cron_expression": "0 30 6 * * ?",
+    "timezone_id": "Asia/Kolkata",
+    "pause_status": "UNPAUSED"
+  },
+  "max_concurrent_runs": 1,
+  "email_notifications": { "on_failure": ["neelamm1002@gmail.com"] },
+  "tasks": [
+    {
+      "task_key": "ingest",
+      "description": "Incremental pull from the Frankfurter API into bronze.",
+      "notebook_task": {
+        "notebook_path": "/Users/neelamm1002@gmail.com/currency-rates-datamart/01_ingest_rates",
+        "base_parameters": { "history_start": "1999-01-04" }
+      }
+    },
+    {
+      "task_key": "merge_silver",
+      "description": "MERGE into silver so re-running never duplicates.",
+      "depends_on": [{ "task_key": "ingest" }],
+      "notebook_task": {
+        "notebook_path": "/Users/neelamm1002@gmail.com/currency-rates-datamart/02_merge_silver"
+      }
+    },
+    {
+      "task_key": "build_star_schema",
+      "description": "Rebuild dim_date, dim_currency and fact_daily_rate.",
+      "depends_on": [{ "task_key": "merge_silver" }],
+      "notebook_task": {
+        "notebook_path": "/Users/neelamm1002@gmail.com/currency-rates-datamart/03_star_schema"
+      }
+    },
+    {
+      "task_key": "test",
+      "description": "Six correctness tests. A failure here fails the run.",
+      "depends_on": [{ "task_key": "build_star_schema" }],
+      "notebook_task": {
+        "notebook_path": "/Users/neelamm1002@gmail.com/currency-rates-datamart/04_tests"
+      }
+    }
+  ]
+}
