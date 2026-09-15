@@ -44,3 +44,8 @@ def test_datamart_persistence(temp_db):
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM fact_currency_rates")
         assert cursor.fetchone()[0] == 2
+
+def test_ml_model_execution():
+    from src.train_model import train_volatility_classifier
+    clf = train_volatility_classifier("data/sample_fx_rates.csv")
+    assert clf is not None
