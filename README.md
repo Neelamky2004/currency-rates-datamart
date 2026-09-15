@@ -1,3 +1,4 @@
+Set-Content -Path "README.md" -Value @'
 # Currency Rates Data Mart
 
 27 years of exchange rates from the European Central Bank, pulled from a free
@@ -107,15 +108,21 @@ All six have to return 0.
 The last one allows small gaps because weekends and holidays are normal. A long
 gap would mean a load failed.
 
-## Data
+## Standalone Python Pipeline & Outlier Engine
 
-[Frankfurter API](https://frankfurter.dev) - European Central Bank reference
-rates. Free, no API key, history back to 1999-01-04.
+In addition to the cloud-native Databricks job, a standalone local ETL and volatility detection engine is implemented under `src/pipeline.py` with an automated PyTest suite.
 
-## Built with
+* **Z-Score Volatility Flagger:** Automatically flags market spikes where exchange rate deviation exceeds $2.0\sigma$.
+* **Batch Persistence:** Loads validated trade batches into an SQLite-backed data mart.
 
-PySpark, Delta Lake, SQL, Databricks Jobs, Unity Catalog.
+### Running Locally
 
-## Note
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
 
-Personal project on Databricks Free Edition, not production work.
+# 2. Run data integrity & volatility tests
+python -m pytest tests/ -v
+
+# 3. Process sample batch feed
+python run_pipeline.py
