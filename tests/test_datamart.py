@@ -5,6 +5,7 @@ import pytest
 from src.anomaly_detector import FXAnomalyDetector
 from src.cloud_storage import AWSS3DataLakeManager
 from src.pipeline import CurrencyDataMartPipeline
+from src.run_reporter import ProjectRunReporter
 from src.train_model import extract_features, train_volatility_classifier
 
 
@@ -108,3 +109,14 @@ def test_aws_s3_storage_mock(tmp_path):
         sample_file.write_text("trade_date,base,target,rate\n2026-09-15,USD,INR,83.45")
         status = manager.upload_rates_snapshot(str(sample_file), "raw/rates.csv")
         assert status is True
+
+
+def test_project_run_reporter():
+    update = ProjectRunReporter.generate_status_update(
+        batch_id="BATCH-20260916",
+        records_processed=15,
+        outliers_detected=2,
+        status="SUCCESS"
+    )
+    assert update["status"] == "SUCCESS"
+    assert "Processed 15 FX rates" in update["summary"]

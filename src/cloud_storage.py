@@ -1,10 +1,13 @@
+"""
+AWS S3 cloud staging layer for raw FX batch rate archives.
+"""
 import os
 import boto3
 from botocore.exceptions import ClientError
 
 
 class AWSS3DataLakeManager:
-    """Manages raw exchange rate snapshot syncs to AWS S3."""
+    """Manages raw exchange rate snapshot syncs to AWS S3 Bronze storage."""
 
     def __init__(self, bucket_name: str = "ecb-fx-rates-bronze", region: str = "ap-south-1"):
         self.bucket_name = bucket_name
