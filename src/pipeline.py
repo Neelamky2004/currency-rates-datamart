@@ -1,33 +1,39 @@
+"""
+Currency Rates Data Mart local ETL and volatility calculation pipeline.
+"""
+from datetime import datetime
 import sqlite3
 import pandas as pd
-import numpy as np
-from datetime import datetime
+
 
 class CurrencyDataMartPipeline:
+    """ETL Pipeline for cleaning, analyzing, and persisting FX rates."""
+
     def __init__(self, db_path: str = "currency_rates.db"):
         self.db_path = db_path
 
     def clean_rates(self, df: pd.DataFrame) -> pd.DataFrame:
-        clean_df = df.dropna(subset=['base_currency', 'target_currency', 'exchange_rate']).copy()
+        cols = ['base_currency', 'target_currency', 'exchange_rate']
+        clean_df = df.dropna(subset=cols).copy()
         clean_df['exchange_rate'] = pd.to_numeric(clean_df['exchange_rate'], errors='coerce')
         clean_df = clean_df.dropna(subset=['exchange_rate'])
         clean_df = clean_df[clean_df['exchange_rate'] > 0]
-        
         if 'trade_date' not in clean_df.columns or clean_df['trade_date'].isnull().all():
             clean_df['trade_date'] = datetime.utcnow().strftime('%Y-%m-%d')
         return clean_df
 
-    def compute_volatility_metrics(self, df: pd.DataFrame, threshold_std: float = 2.0) -> pd.DataFrame:
+    def compute_volatility_metrics(self, df: pd.DataFrame, threshold_std: float = 2.0):
         result = df.copy()
         mean = result['exchange_rate'].mean()
         std = result['exchange_rate'].std()
-        
         if pd.isna(std) or std == 0:
             result['z_score'] = 0.0
             result['spike_flag'] = 0
         else:
             result['z_score'] = (result['exchange_rate'] - mean) / std
-            result['spike_flag'] = result['z_score'].abs().apply(lambda x: 1 if x >= threshold_std else 0)
+            result['spike_flag'] = result['z_score'].abs().apply(
+                lambda x: 1 if x >= threshold_std else 0
+            )
         return result
 
     def load_to_datamart(self, df: pd.DataFrame, table_name: str = "fact_currency_rates"):
@@ -44,10 +50,16 @@ class CurrencyDataMartPipeline:
                     spike_flag INTEGER NOT NULL
                 )
             """)
-            records = df[['trade_date', 'base_currency', 'target_currency', 'exchange_rate', 'z_score', 'spike_flag']].to_records(index=False)
+            cols = [
+                'trade_date', 'base_currency', 'target_currency',
+                'exchange_rate', 'z_score', 'spike_flag'
+            ]
+            records = df[cols].to_records(index=False)
             cursor.executemany(f"""
-                INSERT INTO {table_name} (trade_date, base_currency, target_currency, exchange_rate, z_score, spike_flag)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO {table_name} (
+                    trade_date, base_currency, target_currency,
+                    exchange_rate, z_score, spike_flag
+                ) VALUES (?, ?, ?, ?, ?, ?)
             """, list(records))
             conn.commit()
 

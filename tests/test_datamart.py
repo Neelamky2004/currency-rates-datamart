@@ -1,8 +1,11 @@
-import pytest
-import pandas as pd
 import sqlite3
-from src.pipeline import CurrencyDataMartPipeline
+from moto import mock_aws
+import pandas as pd
+import pytest
 from src.anomaly_detector import FXAnomalyDetector
+from src.cloud_storage import AWSS3DataLakeManager
+from src.pipeline import CurrencyDataMartPipeline
+from src.train_model import extract_features, train_volatility_classifier
 
 
 @pytest.fixture
@@ -61,10 +64,40 @@ def test_isolation_forest_anomaly_detection():
     assert result_df.loc[result_df['exchange_rate'] == 140.50, 'ml_outlier_flag'].values[0] == 1
 
 
+def test_ml_feature_engineering_pipeline():
+    sample_data = pd.DataFrame({
+        'trade_date': ['2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13'],
+        'exchange_rate': [83.0, 83.5, 84.0, 86.0]
+    })
+    fe = extract_features(sample_data)
+    assert 'lag_1' in fe.columns
+    assert 'rate_diff' in fe.columns
+    assert 'pct_change' in fe.columns
+    assert 'rolling_std_3' in fe.columns
+    assert 'volatility_regime' in fe.columns
+    assert len(fe) == 4
+    assert fe.loc[1, 'rate_diff'] == pytest.approx(0.5)
+
+
+def test_random_forest_training_and_evaluation(tmp_path):
+    csv_file = tmp_path / "test_rates.csv"
+    csv_file.write_text(
+        "trade_date,base_currency,target_currency,exchange_rate\n"
+        "2026-09-01,USD,INR,83.0\n"
+        "2026-09-02,USD,INR,83.2\n"
+        "2026-09-03,USD,INR,83.1\n"
+        "2026-09-04,USD,INR,83.4\n"
+        "2026-09-05,USD,INR,83.3\n"
+        "2026-09-06,USD,INR,83.5\n"
+        "2026-09-07,USD,INR,120.0\n"
+    )
+    clf, metrics = train_volatility_classifier(str(csv_file), test_size=0.28)
+    assert clf is not None
+    assert 0.0 <= metrics['accuracy'] <= 1.0
+    assert 0.0 <= metrics['precision'] <= 1.0
+
+
 def test_aws_s3_storage_mock(tmp_path):
-    from moto import mock_aws
-    from src.cloud_storage import AWSS3DataLakeManager
-    
     with mock_aws():
         manager = AWSS3DataLakeManager(bucket_name="test-rates-bucket")
         manager.s3_client.create_bucket(
@@ -73,6 +106,5 @@ def test_aws_s3_storage_mock(tmp_path):
         )
         sample_file = tmp_path / "rates.csv"
         sample_file.write_text("trade_date,base,target,rate\n2026-09-15,USD,INR,83.45")
-        
         status = manager.upload_rates_snapshot(str(sample_file), "raw/rates.csv")
         assert status is True
