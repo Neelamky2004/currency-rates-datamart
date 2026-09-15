@@ -59,3 +59,20 @@ def test_isolation_forest_anomaly_detection():
     assert 'ml_outlier_flag' in result_df.columns
     assert outlier_count >= 1
     assert result_df.loc[result_df['exchange_rate'] == 140.50, 'ml_outlier_flag'].values[0] == 1
+
+
+def test_aws_s3_storage_mock(tmp_path):
+    from moto import mock_aws
+    from src.cloud_storage import AWSS3DataLakeManager
+    
+    with mock_aws():
+        manager = AWSS3DataLakeManager(bucket_name="test-rates-bucket")
+        manager.s3_client.create_bucket(
+            Bucket="test-rates-bucket",
+            CreateBucketConfiguration={"LocationConstraint": "ap-south-1"}
+        )
+        sample_file = tmp_path / "rates.csv"
+        sample_file.write_text("trade_date,base,target,rate\n2026-09-15,USD,INR,83.45")
+        
+        status = manager.upload_rates_snapshot(str(sample_file), "raw/rates.csv")
+        assert status is True
