@@ -1,7 +1,7 @@
-# Engineering Standards & Code Review Guidelines
+# Contribution & Code Review Standards
 
-## PR & Code Review Workflow
-1. Branch from `main` using standard prefixes: `feat/`, `fix/`, `docs/`, `refactor/`.
-2. Ensure automated linters pass: `flake8 src tests`.
-3. All PRs require at least one peer code review before merging into `main`.
-4. Ensure 100% pass rate on test harness: `pytest tests/ -v`.
+## Pull Request Workflow
+1. Create a feature branch: `feat/<name>` or `fix/<name>`.
+2. Ensure flake8 linter passes with zero warnings.
+3. Verify all unit tests pass: `pytest tests/ -v`.
+4. Submit PR and obtain peer code review before merging to `main`.
